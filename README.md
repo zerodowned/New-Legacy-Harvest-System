@@ -1,2 +1,9 @@
 # New Legacy Harvest System
- Emulation for Ultima Online's New Legacy Harvest System
+
+Emulation for Ultima Online's New Legacy Harvest System
+
+Information about the commercial version of this system can be found here: https://www.uo-cah.com/new-legacy/everything-we-know
+
+I am no way associated with Electronic Arts, Broadsword, and any other entity regarding Ultima Online
+
+NOTE: This code is not capable of running on it's own, it's a system written to work as part of the ServUO program
