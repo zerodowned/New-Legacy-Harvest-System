@@ -9,3 +9,5 @@ I am no way associated with Electronic Arts, Broadsword, and any other entity re
 NOTE: This code is not capable of running on it's own, it's a system written to work as part of the ServUO program
 
 I am publishing this as an initial version, code is still quite messy but I am planning to clean things up and centralize it further into a single method, or two, to populate the gump's pages
+
+You can watch the system in use here: https://www.youtube.com/watch?v=OSBR0mZ_8fI
