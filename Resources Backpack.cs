@@ -1,35 +1,44 @@
 using System;
-using Server;
 using Server.Network;
-using System.Collections.Generic;
-using Server.Gumps;
 using Server.Items;
-using Server.Targeting;
 using Server.Mobiles;
 using Server.Commands;
 
-using System.Linq;
+/*
+		This is the gump (Graphical User Menu Pop-up) that displays the count of each item in the player's resource backpack. 
+		Crafting options have been severly reduced to cut down on the total number of items needed for crafting in total across all craft systems. 
+		The Resource Backpack should never hold more than 71 items. 
+
+		Each item has a max stack value of 60,000, but still counts as one item that needs to be iterated over. 
+		Since the total items is limited, iteration should never be an issue since we need to gather data each time the gump is called or refreshed.
+
+		Containers already have an array property to retain what items are inside it, so we use that to get the items in the resource backpack and get 
+		the stack amount of each one to display here.
+
+		Additional edits are needed to check the stack values before dropping resources into the resource backpack and to decline the drop if needed.
+		This will be in addition to checking the expandable option of MaxPerEntry property of the Resource Backpack, which could be a potential gold sink to allow players upgradeability.
+ */
 
 namespace Server.Gumps
 {
 	public class ResourcesBackpackGump : Gump
 	{
-        public static void Initialize()
-        {
-            CommandSystem.Register("RGT", AccessLevel.Owner, RGT_OnCommand);
-/*
+		public static void Initialize()
+		{
+			CommandSystem.Register("RGT", AccessLevel.Owner, RGT_OnCommand);
+
+			// command that is available for testing, only available in Debug mode to avoid accidents
 #if DEBUG
 			CommandSystem.Register("DeleteResourceBackpack", AccessLevel.Owner, DeleteResourceBackpack_OnCommand);
-			CommandSystem.Register("DeleteResourceBackpackList", AccessLevel.Owner, DeleteResourceBackpackList_OnCommand);
 #endif
-*/
+			
 		}
 
-        public static void RGT_OnCommand(CommandEventArgs arg)
-        {
-            Mobile from = arg.Mobile;
-            
-            if( from.HasGump(typeof(ResourcesBackpackGump)) ) 
+		public static void RGT_OnCommand(CommandEventArgs arg)
+		{
+			Mobile from = arg.Mobile;
+			
+			if( from.HasGump(typeof(ResourcesBackpackGump)) ) 
 			{
 				from.CloseGump(typeof(ResourcesBackpackGump));
 			}
@@ -44,8 +53,9 @@ namespace Server.Gumps
 			}
 		}
 
-/*
+		
 #if DEBUG
+		// Deletes the resource backpack from command user so we can test if any/all other avenues that reference the resource backpack will follow the correct path(s) to create a new one 
 		public static void DeleteResourceBackpack_OnCommand(CommandEventArgs arg)
 		{
 			Mobile from = arg.Mobile;
@@ -56,29 +66,30 @@ namespace Server.Gumps
 				pack.Delete();
 			}
 		}
-
-		public static void DeleteResourceBackpackList_OnCommand(CommandEventArgs arg)
-		{
-			Mobile from = arg.Mobile;
-			Container pack = from.ResourceBackpack;
-
-			if (pack != null)
-			{
-				((ResourceBackpack)pack).ResourcesBackpackDictionary = null;
-			}
-		}
 #endif
-*/
+		
+		public Type[] ResourceTypes;
 
-		public const int ResourceMax = 60000;
 		private int Page = 0;
-		private int Subpage = 0;
+		private int Subpage = 0; // reserved for possible future implementation, to allow for more items to be displayed within a single category
+
+		public static readonly int firstcolumnItem = 25;
+		public static readonly int firstcolumnText = 90;
+
+		public static readonly int secondcolumnItem = 275;
+		public static readonly int secondcolumnText = 350;
+
+		public static readonly int yStarting = 90;
+
+		public static readonly int ingotID = 7156;
 
 		public ResourcesBackpackGump( Mobile from ) : base( 100, 100 )
 		{
 			PlayerMobile pm = (PlayerMobile)from;
 
 			Container pack = pm.ResourceBackpack;
+
+			ResourceTypes = LoadResourceTypes();
 
 			if (pack == null)
 			{
@@ -90,58 +101,41 @@ namespace Server.Gumps
 				pm.AddItem(pack);
 			}
 
-			int Max = ((ResourceBackpack)pack).MaxPerEntry;
-
+			// gumps do not retain any information themselves, so we use the player as an object to store which page they're on
+			// this could be done by sending the page number each time a gump is resent, but this way page numbers can be retained across restarts
 			Page = pm.ResourcesBackpack_PageID;
 			Subpage = pm.ResourcesBackpack_SubpageID;
 
-			Closable =true; 
-			Disposable=true; 
-			Dragable=true; 
-			Resizable=false;
+			Closable = true;
+			Disposable = true;
+			Dragable = true;
+			Resizable = false;
 
+			// Page 0 acts as the background/back drop
+			// information displayed on top of it is controlled by the switch case below
 			AddPage(0);
-
 			AddBackground(0, 0, 520, 625, 1755);
+
+			// background for the title display of each switch case
 			AddImage(155, 10, 1764);
 
-			// Tools
+			// Tools above buttons
 			int[] itemsArray = { 7868, 0x13E3, 0x1034, 0x0E3B, 0x14EB, 0xF9D, 0x097F, 0x0E9B, 4130 };
 
-			//AddItem(35, 515, 7868); // Tinker
-			
-			for(int i = 0; i < itemsArray.Length; i++)
+			for (int i = 0; i < itemsArray.Length; i++)
 			{
-				AddItem(i == 0 ? 35 : 35 + (50 * i), 515, itemsArray[i] );
-				AddButton( i == 0 ? 40 : 40 + (50 * i), 565, Page == i ? 2154 : 2151, 2151, (i + 1), GumpButtonType.Reply, 0);
+				AddItem(i == 0 ? 35 : 35 + (50 * i), 515, itemsArray[i]);
+				AddButton(i == 0 ? 40 : 40 + (50 * i), 565, Page == i ? 2154 : 2151, 2151, (i + 1), GumpButtonType.Reply, 0);
 			}
 
-			int firstcolumnItem = 25;
-			int firstcolumnText = 90;
-			int secondcolumnItem = 275;
-			int secondcolumnText = 350;
-
-			int yStarting = 90;
-
-			Item[] item;
-
+			// switch case pages
 			switch (Page)
 			{
 				case 0: // Tinkering
 					{
-						AddPageName(this, "Tinkering");
+						this.AddPageName(this, "Tinkering");
 
-						for (int i = 0; i < 9; i++)
-						{
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[i], false);
-
-							AddItem(firstcolumnItem, yStarting + (40 * i), 7156, CraftResources.GetHue((CraftResource)(i + 1)));
-
-							if (item.Length > 0)
-								AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
+						DisplayIngots(this, pack);
 
 						break;
 					}
@@ -149,17 +143,7 @@ namespace Server.Gumps
 					{
 						AddPageName(this, "Blacksmith");
 
-						for (int i = 0; i < 9; i++)
-						{
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[i], false);
-
-							AddItem(firstcolumnItem, yStarting + (40 * i), 7156, CraftResources.GetHue((CraftResource)(i + 1)));
-
-							if (item.Length > 0)
-								AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
+						DisplayIngots(this, pack);
 
 						break;
 					}
@@ -167,40 +151,33 @@ namespace Server.Gumps
 					{
 						AddPageName(this, "Carpentry");
 
-						for (int i = 22; i < 29; i++)
-						{
-							int j = i - 22;
+						int boardID = 7137;
 
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[i], false);
+						/* 
+							NOTE:
 
-							AddItem(firstcolumnItem, yStarting + (40 * j), 7137, CraftResources.GetHue((CraftResource)(j + 301))); // ResourceInfo.cs, wood starts at enum value 301
+							All arrays used follow the same format:
 
-							if (item.Length > 0)
-								AddHtml(firstcolumnText, yStarting + (40 * j), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(firstcolumnText, yStarting + (40 * j), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
+						 	Item ID, ResourceTypes array indexID, hue #
+						*/
 
-						item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[38], false);
+						// boards
+						int[,,] carpentryArray = new int[,,]
+						{ 	{
+								{ boardID, 22, CraftResources.GetHue((CraftResource)301) },
+								{ boardID, 23, CraftResources.GetHue((CraftResource)302) },
+								{ boardID, 24, CraftResources.GetHue((CraftResource)303) },
+								{ boardID, 25, CraftResources.GetHue((CraftResource)304) },
+								{ boardID, 26, CraftResources.GetHue((CraftResource)305) },
+								{ boardID, 27, CraftResources.GetHue((CraftResource)306) },
+								{ boardID, 28, CraftResources.GetHue((CraftResource)307) },
+								{ 1, 7, 0 },	// skip item
+								{ 5991, 8, 0 }, // cloth
+						} 	};
 
-						AddItem(firstcolumnItem, yStarting + (40 * 8), 5991, 0);
+						DisplayIngots(this, pack);
+						DisplayItems(this, pack, carpentryArray, false, true);
 
-						if (item.Length > 0)
-							AddHtml(firstcolumnText, yStarting + (40 * 8), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-						else
-							AddHtml(firstcolumnText, yStarting + (40 * 8), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-
-						for (int i = 0; i < 9; i++)
-						{
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[i], false);
-
-							AddItem(secondcolumnItem, yStarting + (40 * i), 7156, CraftResources.GetHue((CraftResource)(i + 1)));
-
-							if (item.Length > 0)
-								AddHtml(secondcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(secondcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
 
 						break;
 					}
@@ -208,60 +185,29 @@ namespace Server.Gumps
 					{
 						AddPageName(this, "Inscription");
 
-						// reagents
-						int[,] reagents = new int[,]
-						{
-							/* itemID, indexID */
-							{3962, 29},
-							{3963, 30},
-							{3972, 31},
-							{3973, 32},
-							{3974, 33},
-							{3976, 34},
-							{3980, 35},
-							{3981, 36},
-						};
+						int[,,] reagentArray = new int[,,]
+						{ 	{ 
+								{3962, 29, 0}, // black pearl
+								{3963, 30, 0}, // blood moss
+								{3972, 31, 0}, // garlic
+								{3973, 32, 0}, // ginseng 
+								{3974, 33, 0}, // mandrake root
+								{3976, 34, 0}, // nightshade
+								{3980, 35, 0}, // sulfurous ash
+								{3981, 36, 0}, // spider silk
+						} 	};
 
-						for (int i = 0; i < reagents.GetLength(0); i++)
-						{
-							int itemid = reagents[i, 0];
-							int index = reagents[i, 1];
+						int[,,] variousItems = new int[,,]
+						{ 	{
+								{3827, 41, 0}, // blank scroll
+								{7122, 39, 0}, // feathers
+								{8011, 54, 0}, // recall scroll
+								{8033, 55, 0}, // gate scroll
+								{4157, 42, 0} // wood pulp
+						} 	};
 
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[index], false);
-
-							AddItem(firstcolumnItem, yStarting + (40 * i), itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-							AddItem(firstcolumnItem + 5, yStarting + (40 * i) + 5, itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-
-							if (item.Length > 0)
-								AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
-
-						int[,] array = new int[,]
-						{
-							/* itemID, indexID */
-							{3827, 41}, // blank scroll
-							{7122, 39}, // feathers
-							{8011, 54}, // recall scroll
-							{8033, 55}, // gate scroll
-							{4157, 42} // wood pulp
-						};
-
-						for (int i = 0; i < array.GetLength(0); i++)
-						{
-							int itemid = array[i, 0];
-							int index = array[i, 1];
-
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[index], false);
-
-							AddItem(secondcolumnItem, yStarting + (40 * i), itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-
-							if (item.Length > 0)
-								AddHtml(secondcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(secondcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
+						DisplayItems(this, pack, reagentArray, true);
+						DisplayItems(this, pack, variousItems, false, true);
 
 						break;
 					}
@@ -269,73 +215,39 @@ namespace Server.Gumps
 					{
 						AddPageName(this, "Cartography");
 
-						item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[56], false);
+						int[,,] blankMap = new int[,,]
+						{ 	{
+								{5356, 56, 0}, // blank map
+						} 	};
 
-						AddItem(firstcolumnItem, yStarting, 5356, 0); // ResourceInfo.cs, wood starts at enum value 301
-
-						if (item.Length > 0)
-							AddHtml(firstcolumnText, yStarting, 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-						else
-							AddHtml(firstcolumnText, yStarting, 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
+						DisplayItems(this, pack, blankMap);
 
 						break;
 					}
-				case 5: // Sewing
+				case 5: // Tailoring
 					{
 						AddPageName(this, "Sewing");
 
-						// leather
-						for (int i = 18; i < 22; i++)
-						{
-							int offset = i - 18;
-							int hue = offset + 101;
+						int leatherID = 4225;
 
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[i], false);
+						int[,,] leather = new int[,,]
+						{ 	{ 
+								{leatherID, 38, CraftResources.GetHue((CraftResource)101)},
+								{leatherID, 37, CraftResources.GetHue((CraftResource)102)},
+								{leatherID, 57, CraftResources.GetHue((CraftResource)103)},
+								{leatherID, 58, CraftResources.GetHue((CraftResource)104)},
+						} 	};
 
-							AddItem(firstcolumnItem, yStarting + (40 * offset), 4225, CraftResources.GetHue((CraftResource)(hue)));
+						int[,,] tailoringItems = new int[,,]
+						{ 	{ 
+								{5991, 38, 0}, // cut cloth
+								{3576, 37, 0}, // wool (used to make yarn)
+								{3613, 57, 0}, // yarn (to make bolts of cloth) 
+								{3991, 58, 0}, // bolt of cloth
+						} 	};
 
-							if (item.Length > 0)
-								AddHtml(firstcolumnText, yStarting + (40 * offset), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(firstcolumnText, yStarting + (40 * offset), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
-
-						
-
-						// extras
-						int[,] array = new int[,]
-						{
-							/* itemID, indexID */
-							{5991, 38},
-							{3576, 37},
-							{3613, 57}
-						};
-
-						for (int i = 0; i < array.GetLength(0); i++)
-						{
-							int itemid = array[i, 0];
-							int index = array[i, 1];
-
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[index], false);
-
-							AddItem(secondcolumnItem, yStarting + (40 * i), itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-
-							if (item.Length > 0)
-								AddHtml(secondcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(secondcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
-
-						// bolt of cloth
-						item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[58], false);
-
-						AddItem(secondcolumnItem, yStarting + (40 * 3), 3991, 0);
-
-						if (item.Length > 0)
-							AddHtml(secondcolumnText, yStarting + (40 * 3), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-						else
-							AddHtml(secondcolumnText, yStarting + (40 * 3), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-
+						DisplayItems(this, pack, leather);
+						DisplayItems(this, pack, tailoringItems, false, true);
 
 						break;
 					}
@@ -343,48 +255,29 @@ namespace Server.Gumps
 					{
 						AddPageName(this, "Cooking");
 
-						int[,] array = new int[,]
-						{
-							/* itemID, indexID */
-							{2490,60}, // RawBird // 60
-							{2426,61}, // RawFishSteak // 61
-							{5641,62}, // RawLambLeg // 62
+						int[,,] cookingitems = new int[,,]
+						{	{
+								{2490,60, 0}, // RawBird
+								{2426,61, 0}, // RawFishSteak
+								{5641,62, 0}, // RawLambLeg
+								{2485,63, 0}, // Eggs
+								{2512,64, 0}, // Apple
+								{2513,65, 0}, // Grapes
+								{3852,66, 0}, // GreaterHealPotion
+								{3849,67, 0}, // GreaterStrengthPotion
+						}	};
 
-							{2485,63}, // Eggs // 63
-							{2512,64}, // Apple // 64
-							{2513,65}, // Grapes // 65
+						int[,,] cookingitemsColumnTwo = new int[,,]
+						{	{
+								{4157,68, 0}, // Dough
+								{4154,69, 0}, // SackFlourOpen
+								{4088,71, 0}, // Pitcher
+								{5991,22, 0}, // Board
+								{4108,70, 0}, // WheatSheaf
+						} 	};
 
-							{3852,66}, // GreaterHealPotion // 66
-							{3849,67}, // GreaterStrengthPotion // 67
-
-							// second column
-							{4157,68}, // Dough // 68
-							{4154,69}, // SackFlourOpen // 69
-							{4088,71}, // Pitcher // 72
-							{5991,22}, // Board // 22
-							{4108,70}, // WheatSheaf // 71
-						};
-
-						for (int i = 0; i < array.GetLength(0); i++)
-						{
-							int itemid = array[i, 0];
-							int index = array[i, 1];
-
-							int itemX = i < 8 ? firstcolumnItem : secondcolumnItem;
-							int textX = i < 8 ? firstcolumnText : secondcolumnText;
-
-							int multiplier = i < 8 ? i : i - 8;
-
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[index], false);
-
-							AddItem(itemX, yStarting + (40 * multiplier), itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-							AddItem(itemX + 5, yStarting + (40 * multiplier) + 5, itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-
-							if (item.Length > 0)
-								AddHtml(textX, yStarting + (40 * multiplier), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(textX, yStarting + (40 * multiplier), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
+						DisplayItems(this, pack, cookingitems, true, false);
+						DisplayItems(this, pack, cookingitemsColumnTwo, false, true);
 
 
 						break;
@@ -393,35 +286,19 @@ namespace Server.Gumps
 					{
 						AddPageName(this, "Alchemy");
 
-						// reagents
-						int[,] array = new int[,]
-						{
-							/* itemID, indexID */
-							{3962, 29},
-							{3963, 30},
-							{3972, 31},
-							{3973, 32},
-							{3974, 33},
-							{3976, 34},
-							{3980, 35},
-							{3981, 36},
-						};
+						int[,,] reagentsArray = new int[,,]
+						{ 	{
+								{3962, 29, 0}, // black pearl
+								{3963, 30, 0}, // blood moss
+								{3972, 31, 0}, // garlic
+								{3973, 32, 0}, // ginseng
+								{3974, 33, 0}, // mandrake root
+								{3976, 34, 0}, // nighshade
+								{3980, 35, 0}, // sulfurous ash
+								{3981, 36, 0}, // spider silk
+						} 	};
 
-						for (int i = 0; i < array.GetLength(0); i++)
-						{
-							int itemid = array[i, 0];
-							int index = array[i, 1];
-
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[index], false);
-
-							AddItem(firstcolumnItem, yStarting + (40 * i), itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-							AddItem(firstcolumnItem + 5, yStarting + (40 * i) + 5, itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-
-							if (item.Length > 0)
-								AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
+						DisplayItems(this, pack, reagentsArray, true, false);
 
 						break;
 					}
@@ -429,46 +306,188 @@ namespace Server.Gumps
 					{
 						AddPageName(this, "Bowcraft");
 
-						for (int i = 22; i < 29; i++)
-						{
-							int j = i - 22;
+						int boardID = 7137;
 
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[i], false);
+						// Boards
+						int[,,] bowcraftArray = new int[,,]
+						{ 	{
+								{ boardID, 22, CraftResources.GetHue((CraftResource)301) },
+								{ boardID, 23, CraftResources.GetHue((CraftResource)302) },
+								{ boardID, 24, CraftResources.GetHue((CraftResource)303) },
+								{ boardID, 25, CraftResources.GetHue((CraftResource)304) },
+								{ boardID, 26, CraftResources.GetHue((CraftResource)305) },
+								{ boardID, 27, CraftResources.GetHue((CraftResource)306) },
+								{ boardID, 28, CraftResources.GetHue((CraftResource)307) },
+						} 	};
 
-							AddItem(firstcolumnItem, yStarting + (40 * j), 7137, CraftResources.GetHue((CraftResource)(j + 301))); // ResourceInfo.cs, wood starts at enum value 301
+						int[,,] bowcraftVarious = new int[,,]
+						{ 	{
+								{7125, 59, 0}, // shaft
+								{7122, 39, 0} // feather
+						} 	};
 
-							if (item.Length > 0)
-								AddHtml(firstcolumnText, yStarting + (40 * j), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(firstcolumnText, yStarting + (40 * j), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
-
-						int[,] array = new int[,]
-						{
-							/* itemID, indexID */
-							{7125, 59}, // shaft
-							{7122, 39} // feather
-						};
-
-						for (int i = 0; i < array.GetLength(0); i++)
-						{
-							int itemid = array[i, 0];
-							int index = array[i, 1];
-
-							item = pack.FindItemsByType(((ResourceBackpack)pack).ResourceTypes[index], false);
-
-							AddItem(secondcolumnItem, yStarting + (40 * i), itemid, 0); // ResourceInfo.cs, wood starts at enum value 301
-
-							if (item.Length > 0)
-								AddHtml(secondcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { Max.ToString("#,0") }", false, false);
-							else
-								AddHtml(secondcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { Max.ToString("#,0") }", false, false);
-						}
+						DisplayItems(this, pack, bowcraftArray);
+						DisplayItems(this, pack, bowcraftVarious, false, true);
 
 						break;
 					}
 			}
+		}
 
+
+		/*
+			Format for displaying ingots is done differently since all items use the same ItemID, and the index values for ResourceTypes & CraftResources match
+			If custom ingots are added in, this format may need to be changed
+		*/
+		private void DisplayIngots(Gump gump, Container pack)
+		{
+			ResourceBackpack backpack = (ResourceBackpack)pack;
+
+			for (int i = 0; i < 9; i++)
+			{
+				Item[] item = pack.FindItemsByType(ResourceTypes[i], false);
+
+				gump.AddItem(firstcolumnItem, yStarting + (40 * i), 7156, CraftResources.GetHue((CraftResource)(i + 1)));
+
+				if (item.Length > 0)
+					gump.AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { backpack.MaxPerEntry.ToString("#,0") }", false, false);
+				else
+					gump.AddHtml(firstcolumnText, yStarting + (40 * i), 138, 22, $"<basefont color=#FFFFFF>0 / { backpack.MaxPerEntry.ToString("#,0") }", false, false);
+			}
+		}
+
+		/*
+			Method used to populate other pages from data stored in the arrays.
+			Optional parameters are available to indicate if the item should be
+		*/
+		private void DisplayItems(Gump gump, Container pack, int[,,] array, bool displayDoubleItem = false, bool secondColumn = false)
+		{
+			ResourceBackpack backpack = (ResourceBackpack)pack;
+
+			for (int i = 0; i < array.GetLength(0); i++)
+			{
+				for (int k = 0; k < array.GetLength(1); k++)
+				{
+					int itemid = array[i, k, 0];
+					int index = array[i, k, 1];
+					int hue = array[i, k, 2];
+
+					int itemlocationX = !secondColumn ? firstcolumnItem : secondcolumnItem;
+					int textlocationX = !secondColumn ? firstcolumnText : secondcolumnText;
+
+					// skip item, indicates that we want a space between entries 
+					if (itemid == 1)
+						continue; 
+
+					Item[] item = pack.FindItemsByType(ResourceTypes[index], false);
+
+					gump.AddItem(itemlocationX, yStarting + (40 * k), itemid, hue);
+					if (displayDoubleItem)
+						gump.AddItem(itemlocationX + 5, yStarting + (40 * k) + 5, itemid, hue);
+
+					if (item.Length > 0)
+						gump.AddHtml(textlocationX, yStarting + (40 * k), 138, 22, $"<basefont color=#FFFFFF>{ item[0].Amount.ToString("#,0") } / { backpack.MaxPerEntry.ToString("#,0") }", false, false);
+					else
+						gump.AddHtml(textlocationX, yStarting + (40 * k), 138, 22, $"<basefont color=#FFFFFF>0 / { backpack.MaxPerEntry.ToString("#,0") }", false, false);
+				}
+			}
+		}
+
+		private Type[] LoadResourceTypes()
+		{
+			// These IDs are used to search for particular items in the Resource Backpack
+
+			Type[] resourceTypes = new Type[]
+			{
+				typeof(IronIngot),	// 0 
+				typeof(DullCopperIngot),
+				typeof(ShadowIronIngot),
+				typeof(CopperIngot),
+				typeof(BronzeIngot),
+				typeof(GoldIngot),
+				typeof(AgapiteIngot),
+				typeof(VeriteIngot),
+				typeof(ValoriteIngot), // 8
+
+				typeof(Granite), // 9
+				typeof(DullCopperGranite),
+				typeof(ShadowIronGranite),
+				typeof(CopperGranite),
+				typeof(BronzeGranite),
+				typeof(GoldGranite),
+				typeof(AgapiteGranite),
+				typeof(VeriteGranite),
+				typeof(ValoriteGranite), // 17
+
+				typeof(Leather), // 18
+				typeof(SpinedLeather),
+				typeof(HornedLeather),
+				typeof(BarbedLeather), // 21
+
+				typeof(Board), // 22
+				typeof(OakBoard),
+				typeof(AshBoard),
+				typeof(YewBoard),
+				typeof(HeartwoodBoard),
+				typeof(BloodwoodBoard),
+				typeof(FrostwoodBoard), // 28
+
+				typeof(BlackPearl), // 29
+				typeof(Bloodmoss),
+				typeof(Garlic),
+				typeof(Ginseng),
+				typeof(MandrakeRoot),
+				typeof(Nightshade),
+				typeof(SulfurousAsh),
+				typeof(SpidersSilk), // 36
+
+				typeof(Wool), // 37
+				typeof(Cloth), // 38
+				typeof(Feather), // 39
+				typeof(Bottle), // 40
+				typeof(BlankScroll), // 41
+				typeof(WoodPulp), // 42
+
+				typeof(StarSapphire), // 43
+				typeof(Emerald),
+				typeof(Sapphire),
+				typeof(Ruby),
+				typeof(Citrine),
+				typeof(Amethyst),
+				typeof(Tourmaline),
+				typeof(Amber),
+				typeof(Diamond), // 51
+
+				typeof(Arrow), // 52
+				typeof(Bolt), // 53
+
+				typeof(RecallScroll), // 54
+				typeof(GateTravelScroll), // 55
+
+				typeof(BlankMap), // 56
+
+				typeof(DarkYarn), // 57
+				typeof(BoltOfCloth), // 58
+				typeof(Shaft), // 59
+
+				typeof(RawBird), // 60
+				typeof(RawFishSteak), // 61
+				typeof(RawLambLeg), // 62
+
+				typeof(Eggs), // 63
+				typeof(Apple), // 64
+				typeof(Grapes), // 65
+
+				typeof(GreaterHealPotion), // 66
+				typeof(GreaterStrengthPotion), // 67
+
+				typeof(Dough), // 68
+				typeof(SackFlourOpen), // 69
+				typeof(WheatSheaf), // 70
+				typeof(Pitcher), // 71
+			};
+
+			return resourceTypes;
 		}
 
 		private void AddPageName(Gump gump, string name)
@@ -503,8 +522,6 @@ namespace Server.Gumps
 				((PlayerMobile)from).ResourcesBackpack_PageID = (info.ButtonID - 1);
 				Resend(from);
 			}
-			
 		}
-		
 	}
 }
