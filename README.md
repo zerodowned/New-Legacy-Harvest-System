@@ -10,4 +10,4 @@ NOTE: This code is not capable of running on it's own, it's a system written to 
 
 I am publishing this as an initial version, code is still quite messy but I am planning to clean things up and centralize it further into a single method, or two, to populate the gump's pages
 
-You can watch the system in use here: https://www.youtube.com/watch?v=OSBR0mZ_8fI
+[![Watch the video](https://img.youtube.com/vi/OSBR0mZ_8fI/maxresdefault.jpg)](https://youtu.be/OSBR0mZ_8fI)
