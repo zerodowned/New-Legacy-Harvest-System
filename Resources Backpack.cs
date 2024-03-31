@@ -276,7 +276,7 @@ namespace Server.Gumps
 								{4108,70, 0}, // WheatSheaf
 						} 	};
 
-						DisplayItems(this, pack, cookingitems, true, false);
+						DisplayItems(this, pack, cookingitems, true);
 						DisplayItems(this, pack, cookingitemsColumnTwo, false, true);
 
 
@@ -298,7 +298,7 @@ namespace Server.Gumps
 								{3981, 36, 0}, // spider silk
 						} 	};
 
-						DisplayItems(this, pack, reagentsArray, true, false);
+						DisplayItems(this, pack, reagentsArray, true);
 
 						break;
 					}
