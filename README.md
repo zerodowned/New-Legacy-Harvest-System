@@ -1,10 +1,10 @@
 # New Legacy Harvest System
 [ I am no way associated with Electronic Arts, Broadsword, and any other entity regarding Ultima Online ]
 
-This is an emulated version of Ultima Online's New Legacy Resource System, used for harvesting and crafting
-Information about the commercial version of this system can be found here: https://www.uo-cah.com/new-legacy/everything-we-know
+This is an emulated version of Ultima Online's New Legacy Resource System, used for resources related to harvesting and crafting.
+Information about the commercial version of this system can be found [![ here ](https://www.uo-cah.com/new-legacy/everything-we-know)]
 
-NOTE: This code is not capable of running on it's own, it's a system written to work as part of the ServUO program. Several additional edits are required to the ServUO codebase for this system to be fully functional. I have no included those edits for simplicity.
+NOTE: This code is not capable of running on it's own, it's a system written to work as part of the ServUO program. Several additional edits are required to the [![ ServUO ](https://github.com/ServUO/ServUO)] codebase for this system to be fully functional. I have no included those edits for simplicity.
 
 The Resource Backpack is a new layer on the Player's character. In this case, the layer is a virtual holder for a container which only harvested, or some crafted, items will be stored in. 
 This system is not yet available for public testing. I have designed it based on the screen shots released for public view, the rest I have taken some creative liberty in my design choices. 
@@ -21,11 +21,11 @@ Edits not shown in this repo are:
 
 
 
-Harvesting preview (click to watch the video)
+Harvesting preview [![ click here, or the picture below, to watch the video ](https://youtu.be/OSBR0mZ_8fI)]
 
 [![Watch the video](https://img.youtube.com/vi/OSBR0mZ_8fI/hqdefault.jpg)](https://youtu.be/OSBR0mZ_8fI)
 
-Crafting preview (click to watch the video)
+Crafting preview [![ click here, or the picture below, to watch the video ](https://youtu.be/EYVma-94P3s)]
 
 [![Watch the video](https://img.youtube.com/vi/EYVma-94P3s/hqdefault.jpg)](https://youtu.be/EYVma-94P3s)
 
