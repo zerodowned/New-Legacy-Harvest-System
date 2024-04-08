@@ -25,7 +25,12 @@ namespace Server.Gumps
 	{
 		public static void Initialize()
 		{
+			// command to open the gump, TODO: find a cleaner solution for this
 			CommandSystem.Register("RGT", AccessLevel.Owner, RGT_OnCommand);
+
+			// allows staff to open the ResourceBackpack container of players
+			CommandSystem.Register("ResourceBackpack", AccessLevel.Administrator, ResourceBackpack_OnCommand);
+
 
 			// command that is available for testing, only available in Debug mode to avoid accidents
 #if DEBUG
@@ -53,6 +58,40 @@ namespace Server.Gumps
 			}
 		}
 
+		public static void ResourceBackpack_OnCommand(CommandEventArgs e)
+		{
+			e.Mobile.Target = new ResourceBackpackTarget();
+		}
+
+		private class ResourceBackpackTarget : Target
+		{
+			public ResourceBackpackTarget() : base(-1, false, TargetFlags.None)
+			{
+			}
+
+			protected override void OnTarget(Mobile from, object targeted)
+			{
+				if (targeted is PlayerMobile)
+				{
+					PlayerMobile pm = (PlayerMobile)targeted;
+
+					Container box = pm.ResourceBackpack;
+
+					if (box != null)
+					{
+						// Used to record commands used by staff for auditing purposes
+						CommandLogging.WriteLine(from, "{0} {1} opening resource backpack of {2}", from.AccessLevel, CommandLogging.Format(from), CommandLogging.Format(targeted));
+
+						box.DisplayTo(from);
+					}
+					else
+					{
+						from.SendMessage("They have no resource backpack.");
+					}
+				}
+			}
+		}
+
 		
 #if DEBUG
 		// Deletes the resource backpack from command user so we can test if any/all other avenues that reference the resource backpack will follow the correct path(s) to create a new one 
@@ -67,8 +106,96 @@ namespace Server.Gumps
 			}
 		}
 #endif
-		
-		public Type[] ResourceTypes;
+
+		public static readonly Type[] ResourceTypes = new Type[]
+		{
+			typeof(IronIngot),	// 0 
+			typeof(DullCopperIngot),
+			typeof(ShadowIronIngot),
+			typeof(CopperIngot),
+			typeof(BronzeIngot),
+			typeof(GoldIngot),
+			typeof(AgapiteIngot),
+			typeof(VeriteIngot),
+			typeof(ValoriteIngot), // 8
+
+			typeof(Granite), // 9
+			typeof(DullCopperGranite),
+			typeof(ShadowIronGranite),
+			typeof(CopperGranite),
+			typeof(BronzeGranite),
+			typeof(GoldGranite),
+			typeof(AgapiteGranite),
+			typeof(VeriteGranite),
+			typeof(ValoriteGranite), // 17
+
+			typeof(Leather), // 18
+			typeof(SpinedLeather),
+			typeof(HornedLeather),
+			typeof(BarbedLeather), // 21
+
+			typeof(Board), // 22
+			typeof(OakBoard),
+			typeof(AshBoard),
+			typeof(YewBoard),
+			typeof(HeartwoodBoard),
+			typeof(BloodwoodBoard),
+			typeof(FrostwoodBoard), // 28
+
+			typeof(BlackPearl), // 29
+			typeof(Bloodmoss),
+			typeof(Garlic),
+			typeof(Ginseng),
+			typeof(MandrakeRoot),
+			typeof(Nightshade),
+			typeof(SulfurousAsh),
+			typeof(SpidersSilk), // 36
+
+			typeof(Wool), // 37
+			typeof(Cloth), // 38
+			typeof(Feather), // 39
+			typeof(Bottle), // 40
+			typeof(BlankScroll), // 41
+			typeof(WoodPulp), // 42
+
+			typeof(StarSapphire), // 43
+			typeof(Emerald),
+			typeof(Sapphire),
+			typeof(Ruby),
+			typeof(Citrine),
+			typeof(Amethyst),
+			typeof(Tourmaline),
+			typeof(Amber),
+			typeof(Diamond), // 51
+
+			typeof(Arrow), // 52
+			typeof(Bolt), // 53
+
+			typeof(RecallScroll), // 54
+			typeof(GateTravelScroll), // 55
+
+			typeof(BlankMap), // 56
+
+			typeof(DarkYarn), // 57
+			typeof(BoltOfCloth), // 58
+			typeof(Shaft), // 59
+
+			typeof(RawBird), // 60
+			typeof(RawFishSteak), // 61
+			typeof(RawLambLeg), // 62
+
+			typeof(Eggs), // 63
+			typeof(Apple), // 64
+			typeof(Grapes), // 65
+
+			typeof(GreaterHealPotion), // 66
+			typeof(GreaterStrengthPotion), // 67
+
+			typeof(Dough), // 68
+			typeof(SackFlourOpen), // 69
+			typeof(WheatSheaf), // 70
+			typeof(Pitcher), // 71
+		};
 
 		private int Page = 0;
 		private int Subpage = 0; // reserved for possible future implementation, to allow for more items to be displayed within a single category
@@ -88,8 +215,6 @@ namespace Server.Gumps
 			PlayerMobile pm = (PlayerMobile)from;
 
 			Container pack = pm.ResourceBackpack;
-
-			ResourceTypes = LoadResourceTypes();
 
 			if (pack == null)
 			{
@@ -393,103 +518,6 @@ namespace Server.Gumps
 			}
 		}
 
-		private Type[] LoadResourceTypes()
-		{
-			// These IDs are used to search for particular items in the Resource Backpack
-
-			Type[] resourceTypes = new Type[]
-			{
-				typeof(IronIngot),	// 0 
-				typeof(DullCopperIngot),
-				typeof(ShadowIronIngot),
-				typeof(CopperIngot),
-				typeof(BronzeIngot),
-				typeof(GoldIngot),
-				typeof(AgapiteIngot),
-				typeof(VeriteIngot),
-				typeof(ValoriteIngot), // 8
-
-				typeof(Granite), // 9
-				typeof(DullCopperGranite),
-				typeof(ShadowIronGranite),
-				typeof(CopperGranite),
-				typeof(BronzeGranite),
-				typeof(GoldGranite),
-				typeof(AgapiteGranite),
-				typeof(VeriteGranite),
-				typeof(ValoriteGranite), // 17
-
-				typeof(Leather), // 18
-				typeof(SpinedLeather),
-				typeof(HornedLeather),
-				typeof(BarbedLeather), // 21
-
-				typeof(Board), // 22
-				typeof(OakBoard),
-				typeof(AshBoard),
-				typeof(YewBoard),
-				typeof(HeartwoodBoard),
-				typeof(BloodwoodBoard),
-				typeof(FrostwoodBoard), // 28
-
-				typeof(BlackPearl), // 29
-				typeof(Bloodmoss),
-				typeof(Garlic),
-				typeof(Ginseng),
-				typeof(MandrakeRoot),
-				typeof(Nightshade),
-				typeof(SulfurousAsh),
-				typeof(SpidersSilk), // 36
-
-				typeof(Wool), // 37
-				typeof(Cloth), // 38
-				typeof(Feather), // 39
-				typeof(Bottle), // 40
-				typeof(BlankScroll), // 41
-				typeof(WoodPulp), // 42
-
-				typeof(StarSapphire), // 43
-				typeof(Emerald),
-				typeof(Sapphire),
-				typeof(Ruby),
-				typeof(Citrine),
-				typeof(Amethyst),
-				typeof(Tourmaline),
-				typeof(Amber),
-				typeof(Diamond), // 51
-
-				typeof(Arrow), // 52
-				typeof(Bolt), // 53
-
-				typeof(RecallScroll), // 54
-				typeof(GateTravelScroll), // 55
-
-				typeof(BlankMap), // 56
-
-				typeof(DarkYarn), // 57
-				typeof(BoltOfCloth), // 58
-				typeof(Shaft), // 59
-
-				typeof(RawBird), // 60
-				typeof(RawFishSteak), // 61
-				typeof(RawLambLeg), // 62
-
-				typeof(Eggs), // 63
-				typeof(Apple), // 64
-				typeof(Grapes), // 65
-
-				typeof(GreaterHealPotion), // 66
-				typeof(GreaterStrengthPotion), // 67
-
-				typeof(Dough), // 68
-				typeof(SackFlourOpen), // 69
-				typeof(WheatSheaf), // 70
-				typeof(Pitcher), // 71
-			};
-
-			return resourceTypes;
-		}
-
 		private void AddPageName(Gump gump, string name)
 		{
 			gump.AddHtml(169, 22, 172, 22, $"<center>{name}", false, false);
@@ -497,10 +525,7 @@ namespace Server.Gumps
 		
 		public void Resend( Mobile from )
 		{
-			if( from.HasGump(typeof(ResourcesBackpackGump)) ) 
-			{
-				from.CloseGump(typeof(ResourcesBackpackGump));
-			}
+			from.CloseGump(typeof(ResourcesBackpackGump));
 			from.SendGump( new ResourcesBackpackGump( from ) );
 		}
 
